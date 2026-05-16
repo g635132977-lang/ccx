@@ -112,7 +112,7 @@ const { t } = useI18n()
 defineProps<{ modelValue: boolean }>()
 defineEmits<{ 'update:modelValue': [value: boolean] }>()
 
-const systemStore = useSystemStore()
+const systemStore = useSystemStore() as any
 const loading = ref(false)
 const status = ref<UpdateStatusResponse | null>(null)
 const applySuccess = ref(false)

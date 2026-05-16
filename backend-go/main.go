@@ -138,7 +138,7 @@ func main() {
 		messagesMetricsManager.GetFailureThreshold()*100, messagesMetricsManager.GetWindowSize())
 
 	// 初始化对话追踪器和覆盖管理器
-	conversationTracker := conversation.NewConversationTracker(1*time.Hour, 2*time.Hour, ".config/conversation_state.json")
+	conversationTracker := conversation.NewConversationTracker(1*time.Hour, 24*time.Hour, ".config/conversation_state.json")
 	overrideManager := conversation.NewOverrideManager(30 * time.Minute)
 	channelScheduler.SetConversationComponents(conversationTracker, overrideManager)
 	log.Printf("[Conversation-Init] 对话追踪器和覆盖管理器已初始化 (idle: 1h, expire: 2h, override TTL: 30m)")

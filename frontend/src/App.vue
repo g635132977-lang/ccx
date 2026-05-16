@@ -280,22 +280,6 @@
           </v-col>
         </v-row>
 
-        <!-- 驾驶舱页面：仅显示系统状态 -->
-        <v-row v-if="route.path === '/conversations'" class="mb-4 stat-cards-row">
-          <v-col cols="12" sm="4">
-            <div class="stat-card" :class="systemStore.systemStatus === 'running' ? 'stat-card-emerald' : 'stat-card-error'">
-              <div class="stat-card-icon" :class="{ 'pulse-animation': systemStore.systemStatus === 'running' }">
-                <v-icon size="28">{{ systemStore.systemStatus === 'running' ? 'mdi-heart-pulse' : 'mdi-alert-circle' }}</v-icon>
-              </div>
-              <div class="stat-card-content">
-                <div class="stat-card-value">{{ systemStatusText }}</div>
-                <div class="stat-card-label">{{ t('app.stats.systemStatus') }}</div>
-                <div class="stat-card-desc">{{ systemStatusDesc }}</div>
-              </div>
-              <div class="stat-card-glow"></div>
-            </div>
-          </v-col>
-        </v-row>
 
         <!-- 操作按钮区域 - 现代化设计 -->
         <div v-if="route.path !== '/conversations'" class="action-bar mb-6">

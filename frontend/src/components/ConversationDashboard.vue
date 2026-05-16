@@ -11,6 +11,10 @@
         <v-chip value="gemini" variant="outlined" size="small" color="orange" class="filter-chip" filter>GEMINI</v-chip>
       </v-chip-group>
       <v-spacer />
+      <span class="system-status-indicator" :class="'status-' + systemStore.systemStatus">
+        <span class="status-dot"></span>
+        {{ systemStatusText }}
+      </span>
       <span class="text-caption text-medium-emphasis">
         Active: {{ filteredConversations.length }}
         <span v-if="overrideCount > 0" class="ml-2 text-warning">Override: {{ overrideCount }}</span>
@@ -22,8 +26,8 @@
       <v-progress-circular indeterminate color="primary" />
     </div>
 
-    <!-- Empty -->
-    <v-card v-else-if="!filteredConversations.length" variant="outlined" class="text-center pa-12">
+    <!-- Empty (no conversations at all) -->
+    <v-card v-else-if="!conversations.length" variant="outlined" class="text-center pa-12">
       <v-icon size="48" color="grey">mdi-chat-outline</v-icon>
       <div class="text-body-1 mt-4 text-medium-emphasis">
         {{ t('cockpit.empty') }}
@@ -31,19 +35,32 @@
     </v-card>
 
     <!-- Conversation cards -->
-    <v-row v-else>
-      <v-col v-for="conv in filteredConversations" :key="conv.id" cols="12" md="6">
-        <ConversationCard
-          :conversation="conv"
-          :override="overrides[conv.id]"
-          :available-channels="getChannelsForKind(conv.kind)"
-          :expanded="expandedCards.has(conv.id)"
-          @toggle-expand="toggleExpand(conv.id)"
-          @set-override="handleSetOverride"
-          @remove-override="handleRemoveOverride"
-        />
-      </v-col>
-    </v-row>
+    <template v-else>
+      <v-card v-if="!filteredConversations.length" variant="outlined" class="text-center pa-8 mb-4">
+        <div class="text-body-2 text-medium-emphasis">
+          {{ t('cockpit.empty') }}
+        </div>
+      </v-card>
+      <v-row>
+        <v-col
+          v-for="conv in sortedConversations"
+          v-show="isVisible(conv)"
+          :key="conv.id"
+          cols="12"
+          md="6"
+        >
+          <ConversationCard
+            :conversation="conv"
+            :override="overrides[conv.id]"
+            :available-channels="getChannelsForKind(conv.kind)"
+            :expanded="expandedCards.has(conv.id)"
+            @toggle-expand="toggleExpand(conv.id)"
+            @set-override="handleSetOverride"
+            @remove-override="handleRemoveOverride"
+          />
+        </v-col>
+      </v-row>
+    </template>
   </div>
 </template>
 
@@ -52,9 +69,20 @@ import { ref, computed } from 'vue'
 import { api, type ConversationInfo, type SequenceOverrideInfo, type ChannelSequenceEntry } from '@/services/api'
 import { useGlobalTick } from '@/composables/useGlobalTick'
 import { useI18n } from '@/i18n'
+import { useSystemStore } from '@/stores/system'
 import ConversationCard from './ConversationCard.vue'
 
 const { t } = useI18n()
+const systemStore = useSystemStore() as any
+
+const systemStatusText = computed(() => {
+  switch (systemStore.systemStatus) {
+    case 'running': return t('system.running')
+    case 'error': return t('system.error')
+    case 'connecting': return t('system.connecting')
+    default: return t('system.unknown')
+  }
+})
 
 const loading = ref(true)
 const conversations = ref<ConversationInfo[]>([])
@@ -86,11 +114,20 @@ function normalizeChannelsByKind(value: Record<string, any[]>): Record<string, D
   )
 }
 
+const sortedConversations = computed(() => {
+  return [...conversations.value].sort((a, b) => new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime())
+})
+
 const filteredConversations = computed(() => {
   const filter = kindFilter.value
-  const items = filter ? conversations.value.filter(c => c.kind === filter) : conversations.value
-  return [...items].sort((a, b) => new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime())
+  if (!filter) return sortedConversations.value
+  return sortedConversations.value.filter(c => c.kind === filter)
 })
+
+function isVisible(conv: ConversationInfo): boolean {
+  const filter = kindFilter.value
+  return !filter || conv.kind === filter
+}
 
 const overrideCount = computed(() => Object.keys(overrides.value).length)
 
@@ -116,7 +153,7 @@ async function fetchAllChannels() {
 
 async function fetchConversations() {
   try {
-    const resp = await api.getConversations(kindFilter.value || undefined)
+    const resp = await api.getConversations(undefined)
     conversations.value = resp.conversations || []
     overrides.value = resp.overrides || {}
     if (resp.channelsByKind) {
@@ -174,5 +211,36 @@ fetchAllChannels()
   font-size: 10px !important;
   font-weight: 700;
   letter-spacing: 0.06em;
+}
+.system-status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  margin-right: 12px;
+  border: 1px solid rgb(var(--v-theme-on-surface));
+  background: rgb(var(--v-theme-surface));
+}
+.system-status-indicator .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #9ca3af;
+}
+.system-status-indicator.status-running .status-dot {
+  background: #10b981;
+  animation: dot-pulse 2s ease-in-out infinite;
+}
+.system-status-indicator.status-error .status-dot {
+  background: #ef4444;
+}
+.system-status-indicator.status-connecting .status-dot {
+  background: #f59e0b;
+}
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 </style>

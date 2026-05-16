@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"log"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -43,16 +44,17 @@ func (conv *Conversation) recomputeTitle() {
 }
 
 type ConversationTracker struct {
-	mu             sync.RWMutex
-	conversations  map[string]*Conversation
-	sessionMapping map[string]string // sessionID → conversationID (for Responses)
-	userMapping    map[string]string // kind:userID → conversationID (for Chat/Messages/Gemini)
-	idleTTL        time.Duration
-	expireTTL      time.Duration
-	persistPath    string
-	dirty          bool
-	stopCh         chan struct{}
-	stopOnce       sync.Once
+	mu               sync.RWMutex
+	conversations    map[string]*Conversation
+	sessionMapping   map[string]string // sessionID → conversationID (for Responses)
+	userMapping      map[string]string // kind:userID → conversationID (for Chat/Messages/Gemini)
+	idleTTL          time.Duration
+	expireTTL        time.Duration
+	maxConversations int
+	persistPath      string
+	dirty            bool
+	stopCh           chan struct{}
+	stopOnce         sync.Once
 }
 
 func NewConversationTracker(idleTTL, expireTTL time.Duration, persistPath ...string) *ConversationTracker {
@@ -62,13 +64,14 @@ func NewConversationTracker(idleTTL, expireTTL time.Duration, persistPath ...str
 	}
 
 	ct := &ConversationTracker{
-		conversations:  make(map[string]*Conversation),
-		sessionMapping: make(map[string]string),
-		userMapping:    make(map[string]string),
-		idleTTL:        idleTTL,
-		expireTTL:      expireTTL,
-		persistPath:    path,
-		stopCh:         make(chan struct{}),
+		conversations:    make(map[string]*Conversation),
+		sessionMapping:   make(map[string]string),
+		userMapping:      make(map[string]string),
+		idleTTL:          idleTTL,
+		expireTTL:        expireTTL,
+		maxConversations: 100,
+		persistPath:      path,
+		stopCh:           make(chan struct{}),
 	}
 
 	if path != "" {
@@ -375,6 +378,26 @@ func (ct *ConversationTracker) cleanup() {
 			removed++
 		} else if idleDuration > ct.idleTTL && conv.Status != "idle" {
 			conv.Status = "idle"
+		}
+	}
+
+	// 数量上限裁剪：超过 maxConversations 时按 LastActiveAt 从旧到新删除
+	if ct.maxConversations > 0 && len(ct.conversations) > ct.maxConversations {
+		type entry struct {
+			id   string
+			conv *Conversation
+		}
+		entries := make([]entry, 0, len(ct.conversations))
+		for id, conv := range ct.conversations {
+			entries = append(entries, entry{id, conv})
+		}
+		sort.Slice(entries, func(i, j int) bool {
+			return entries[i].conv.LastActiveAt.Before(entries[j].conv.LastActiveAt)
+		})
+		excess := len(entries) - ct.maxConversations
+		for i := 0; i < excess; i++ {
+			ct.removeConversation(entries[i].id, entries[i].conv)
+			removed++
 		}
 	}
 

@@ -32,7 +32,7 @@
             'current-channel-chip': ch.index === conversation.currentChannel && !hasOverride,
             'next-channel-chip': ch.index === nextChannel,
           }"
-          :color="ch.index === conversation.currentChannel ? 'primary' : ch.index === nextChannel ? 'warning' : undefined"
+          :color="ch.index === conversation.currentChannel ? 'primary' : ch.index === nextChannel ? 'success' : undefined"
           :variant="ch.index === conversation.currentChannel ? 'flat' : ch.index === nextChannel ? 'tonal' : 'outlined'"
           size="x-small"
           @click.stop="handleQuickOverride(ch)"
@@ -73,7 +73,7 @@
             <span class="seq-arrow">&rarr;</span>
             <span class="text-caption flex-grow-1 channel-name" @click.stop="handleMoveToTop(ch, i)">{{ ch.name }}</span>
             <v-chip v-if="ch.index === conversation.currentChannel" size="x-small" color="primary" variant="flat" class="mr-1">CURRENT</v-chip>
-            <v-chip v-else-if="ch.index === nextChannel" size="x-small" color="warning" variant="tonal" class="mr-1">NEXT</v-chip>
+            <v-chip v-else-if="ch.index === nextChannel" size="x-small" color="success" variant="tonal" class="mr-1">NEXT</v-chip>
             <v-chip v-if="ch.status === 'suspended'" size="x-small" variant="flat" class="fused-chip mr-1">FUSED</v-chip>
             <v-btn icon size="x-small" variant="text" :disabled="i === channelSequence.length - 1" @click.stop="handleDemote(i)">
               <v-icon size="14">mdi-arrow-down</v-icon>
@@ -471,18 +471,18 @@ function handleDemote(index: number) {
 }
 
 .next-channel-chip {
-  color: #4a2b00 !important;
-  border-color: #8a5a00 !important;
+  color: #065f46 !important;
+  border-color: #059669 !important;
   font-weight: 700;
 }
 .next-channel-chip :deep(.v-chip__content),
 .next-channel-chip :deep(.v-chip__append) {
-  color: #4a2b00 !important;
+  color: #065f46 !important;
 }
 .v-theme--dark .next-channel-chip,
 .v-theme--dark .next-channel-chip :deep(.v-chip__content),
 .v-theme--dark .next-channel-chip :deep(.v-chip__append) {
-  color: #ffe08a !important;
+  color: #6ee7b7 !important;
 }
 
 .font-weight-mono {
