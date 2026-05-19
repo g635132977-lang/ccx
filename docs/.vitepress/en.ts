@@ -6,9 +6,21 @@ export const enConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
   themeConfig: {
     nav: [
       { text: 'Guide', link: '/en/guide/getting-started' },
+      { text: 'Client Setup', link: '/en/guide/clients/' },
       { text: 'Provider Setup', link: '/en/providers/' },
     ],
     sidebar: {
+      '/en/guide/clients/': [
+        {
+          text: 'Client Setup',
+          items: [
+            { text: 'Overview', link: '/en/guide/clients/' },
+            { text: 'Claude Code', link: '/en/guide/clients/claude-code' },
+            { text: 'Codex CLI / Codex App', link: '/en/guide/clients/codex' },
+            { text: 'OpenCode', link: '/en/guide/clients/opencode' },
+          ],
+        },
+      ],
       '/en/guide/': [
         {
           text: 'Getting Started',

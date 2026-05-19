@@ -6,9 +6,21 @@ export const zhConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
   themeConfig: {
     nav: [
       { text: '指南', link: '/guide/getting-started' },
+      { text: '客户端接入', link: '/guide/clients/' },
       { text: '配置教程', link: '/providers/' },
     ],
     sidebar: {
+      '/guide/clients/': [
+        {
+          text: '客户端接入',
+          items: [
+            { text: '概览', link: '/guide/clients/' },
+            { text: 'Claude Code', link: '/guide/clients/claude-code' },
+            { text: 'Codex CLI / Codex App', link: '/guide/clients/codex' },
+            { text: 'OpenCode', link: '/guide/clients/opencode' },
+          ],
+        },
+      ],
       '/guide/': [
         {
           text: '入门',

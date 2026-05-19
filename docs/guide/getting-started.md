@@ -61,4 +61,4 @@ export ADMIN_ACCESS_KEY=your-admin-key
 
 ## 下一步
 
-前往 [配置教程](/providers/) 了解如何配置各个 LLM 提供商。
+前往 [客户端接入](/guide/clients/) 配置 Claude Code、Codex CLI / App 或 OpenCode；前往 [配置教程](/providers/) 了解如何配置各个 LLM 提供商。

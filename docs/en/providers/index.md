@@ -37,6 +37,8 @@ This section guides you through configuring various LLM providers in CCX.
 
 ::: tip
 Most Chinese LLM providers now support both OpenAI Chat and Anthropic Messages protocols. If you use Claude Code CLI, you can configure the Anthropic-compatible endpoint directly under the Messages endpoint.
+
+If you want to configure by client, see the [Client Setup guide](/en/guide/clients/).
 :::
 
 ## Provider Guides

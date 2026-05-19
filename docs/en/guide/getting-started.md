@@ -59,4 +59,4 @@ From the admin console you can:
 
 ## Next Steps
 
-Head to [Provider Setup](/en/providers/) to learn how to configure each LLM provider.
+Head to [Client Setup](/en/guide/clients/) to configure Claude Code, Codex CLI / App, or OpenCode; head to [Provider Setup](/en/providers/) to configure each LLM provider.

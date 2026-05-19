@@ -39,6 +39,8 @@
 
 ::: tip
 大多数国产 LLM 提供商现在同时兼容 OpenAI Chat 和 Anthropic Messages 协议。如果你使用 Claude Code CLI，可以直接在 Messages 入口配置 Anthropic 兼容端点。
+
+如果你想按客户端配置，请查看[客户端接入指南](/guide/clients/)。
 :::
 
 ## 提供商配置指南
