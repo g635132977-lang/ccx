@@ -44,28 +44,38 @@ const formatDecimal = (num: number) => {
   return val % 1 === 0 ? String(val) : val.toFixed(1)
 }
 
-// 自动演进计时器设计
+// 自动演进计时器设计 (秒 -> 分 -> 时 -> 天 -> 周 -> 月 完美连续进化)
 const uptimeDisplay = computed(() => {
   const t = localUptime.value
   if (!props.status.running || !t) return '——'
 
-  // 1. 进化阶段 A（小于 1 分钟）：显示为秒，如 12.3s，由于 100ms 计时，数值将在眼前丝滑流动累加
+  // 1. 进化阶段 A (小于 1 分钟)：显示为秒，如 12.3s，毫秒自增流动
   if (t < 60) {
     return `${formatDecimal(t)}s`
   }
 
-  // 2. 进化阶段 B（小于 1 小时 / 3600 秒）：显示为分钟，如 12.4m
+  // 2. 进化阶段 B (小于 1 小时 / 3600秒)：显示为分，如 12.4m
   if (t < 3600) {
     return `${formatDecimal(t / 60)}m`
   }
 
-  // 3. 进化阶段 C（小于 1 天 / 86400 秒）：显示为小时，如 4.2h
+  // 3. 进化阶段 C (小于 1 天 / 86400秒)：显示为小时，如 4.2h
   if (t < 86400) {
     return `${formatDecimal(t / 3600)}h`
   }
 
-  // 4. 进化阶段 D（大于 1 天）：进化为天，如 3.1d
-  return `${formatDecimal(t / 86400)}d`
+  // 4. 进化阶段 D (小于 1 周 / 604800秒)：显示为天，如 3.5d
+  if (t < 604800) {
+    return `${formatDecimal(t / 86400)}d`
+  }
+
+  // 5. 进化阶段 E (小于 1 月 / 2592000秒)：显示为周，如 2.1w
+  if (t < 2592000) {
+    return `${formatDecimal(t / 604800)}w`
+  }
+
+  // 6. 进化阶段 F (大于等于 1 月)：显示为月，如 1.5M (为防与分 m 冲突，月采用大写 M)
+  return `${formatDecimal(t / 2592000)}M`
 })
 </script>
 
