@@ -179,8 +179,31 @@ jobs:
         run: bun install --frozen-lockfile
         working-directory: ./desktop/frontend
 
-      - name: Add NSIS to PATH
-        run: echo "C:/Program Files (x86)/NSIS" >> $GITHUB_PATH
+      - name: Ensure NSIS is on PATH
+        shell: powershell
+        run: |
+          $nsisPath = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
+          if (-not (Test-Path $nsisPath) -and -not (Get-Command makensis -ErrorAction SilentlyContinue)) {
+            Write-Output "NSIS not found, installing via Chocolatey"
+            choco install nsis -y
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "Chocolatey install failed with exit code $LASTEXITCODE"
+              exit $LASTEXITCODE
+            }
+          } else {
+            Write-Output "NSIS already present"
+          }
+          $makensis = Get-Command makensis -ErrorAction SilentlyContinue
+          if ($makensis) {
+            $nsisDir = Split-Path -Parent $makensis.Source
+          } elseif (Test-Path $nsisPath) {
+            $nsisDir = Split-Path -Parent $nsisPath
+          } else {
+            Write-Error "NSIS not found after install attempt"
+            exit 1
+          }
+          Write-Output "NSIS directory: $nsisDir"
+          echo "$nsisDir" >> $env:GITHUB_PATH
 
       - name: Build Desktop amd64 NSIS
         env:
