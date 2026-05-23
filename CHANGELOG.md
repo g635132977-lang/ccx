@@ -1,3 +1,13 @@
+## [v2.7.20] - 2026-05-23
+
+### 修复
+
+- **MiMo 渠道模板 Base URL 修正** - 修正 MiMo 渠道模板 Base URL 为 Anthropic 协议入口，同时调整计费模式表单顺序
+- **网关监控默认显示配置端口** - 网关监控打开时默认显示 .env 中配置的端口，启动后端时优先使用用户配置的端口
+- **Windows Desktop amd64 安装包缺失** - 修复 CI 中 Windows Desktop amd64 安装包在 Release 中缺失的问题
+- **macOS 应用图标重新设计** - 重新设计应用图标以适配 macOS Human Interface Guidelines
+- **macOS 托盘图标交互修复** - 修复 macOS 托盘图标点击后窗口置顶和位置偏移的问题
+
 ## [v2.7.19] - 2026-05-23
 
 ### 修复
