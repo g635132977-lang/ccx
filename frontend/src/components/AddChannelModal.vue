@@ -166,6 +166,8 @@
                 :rules="[rules.required]"
                 required
                 :error-messages="errors.serviceType"
+                eager
+                @update:menu="onMenuUpdate"
               />
             </v-col>
 
@@ -336,7 +338,9 @@
                       :placeholder="t('addChannel.sourceModelPlaceholder')"
                       clearable
                       :error="!!sourceMappingError"
+                      eager
                       @update:model-value="handleSourceModelChange"
+                      @update:menu="onMenuUpdate"
                       @keyup.enter="addModelMapping"
                     />
                     <v-icon color="primary">mdi-arrow-right</v-icon>
@@ -352,7 +356,9 @@
                       class="flex-1-1"
                       style="min-width: 160px"
                       clearable
+                      eager
                       @focus="handleTargetModelClick"
+                      @update:menu="onMenuUpdate"
                       @keyup.enter="addModelMapping"
                     />
                     <v-select
@@ -365,6 +371,8 @@
                       hide-details
                       clearable
                       class="flex-1-1"
+                      eager
+                      @update:menu="onMenuUpdate"
                     />
                     <v-btn
                       color="secondary"
@@ -406,6 +414,8 @@
                         density="comfortable"
                         hide-details
                         clearable
+                        eager
+                        @update:menu="onMenuUpdate"
                       />
                     </v-col>
                   </v-row>
@@ -426,7 +436,9 @@
                 clearable
                 variant="outlined"
                 density="comfortable"
+                eager
                 @focus="ensureTargetModelsLoaded"
+                @update:menu="onMenuUpdate"
               />
             </v-col>
 
@@ -446,7 +458,9 @@
                 closable-chips
                 variant="outlined"
                 density="comfortable"
+                eager
                 @update:model-value="handleSupportedModelsChange"
+                @update:menu="onMenuUpdate"
               />
               <div class="d-flex align-center flex-wrap ga-2 mt-2">
                 <div class="text-caption text-primary">{{ t('addChannel.commonFilters') }}</div>
@@ -823,6 +837,8 @@
                   density="comfortable"
                   hide-details
                   class="channel-config-select"
+                  eager
+                  @update:menu="onMenuUpdate"
                 />
               </div>
             </v-col>
@@ -1313,6 +1329,14 @@ const formExpectedRequestUrls = computed(() => {
   const effectiveServiceType = props.channelType === 'images' ? 'openai' : form.serviceType
   return buildExpectedRequestUrls(props.channelType, effectiveServiceType, form.baseUrl, form.baseUrls)
 })
+
+// Workaround: Vuetify v-select menu 在 v-dialog 内首次打开时位置计算错误
+// 通过 dispatch resize 强制重新计算菜单位置
+const onMenuUpdate = (open: boolean) => {
+  if (open) {
+    setTimeout(() => window.dispatchEvent(new Event('resize')), 50)
+  }
+}
 
 // 处理快速添加提交
 const handleQuickSubmit = () => {
