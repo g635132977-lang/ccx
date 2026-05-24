@@ -486,6 +486,8 @@ func (s *Service) applyCodexOpenAI(apiKey string) error {
 	}
 	updated := upsertTopLevelTomlString(configContent, "model_provider", "openai")
 	updated = restoreNamedTomlBlock(updated, "model_providers.ccx", nil)
+	// OpenAI 是内置 provider，不需要显式配置块
+	updated = restoreNamedTomlBlock(updated, "model_providers.openai", nil)
 	if err := writeTextAtomic(configPath, updated); err != nil {
 		return err
 	}
