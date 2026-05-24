@@ -87,6 +87,7 @@ type CodexProxyState struct {
 	OriginalModelProvider *string `json:"originalModelProvider,omitempty"`
 	OriginalProviderBlock *string `json:"originalProviderBlock,omitempty"`
 	OriginalOpenAIAPIKey  *string `json:"originalOpenaiApiKey,omitempty"`
+	InjectedProvider      string  `json:"injectedProvider,omitempty"`
 	InjectedBaseURL       string  `json:"injectedBaseUrl"`
 	InjectedAPIKey        string  `json:"injectedApiKey"`
 }
@@ -308,16 +309,16 @@ func (s *Service) getCodexStatus(port int) (AgentConfigStatus, error) {
 	baseURL, _ := extractTomlStringField(extractCodexProviderBlock(text), "base_url")
 	modelProvider, _ := extractTopLevelTomlString(text, "model_provider")
 	status.CurrentBaseURL = baseURL
-	if modelProvider == ProviderCCX {
-		status.Provider = ProviderCCX
-	} else {
-		status.Provider = ProviderOpenAI
+	status.Provider = normalizeCodexProvider(modelProvider)
+	if status.Provider != ProviderCCX {
+		status.TargetProvider = status.Provider
+	}
+	if status.Provider == ProviderOpenAI {
 		// OpenAI 官方模式，不需要目标 URL
 		status.TargetBaseURL = ""
-		status.TargetProvider = ProviderOpenAI
 	}
 	status.MatchesCurrentPort = modelProvider == ProviderCCX && baseURL == target
-	status.Configured = status.MatchesCurrentPort || status.Provider == ProviderOpenAI
+	status.Configured = status.MatchesCurrentPort || status.Provider == ProviderOpenAI || isCodexThirdPartyProvider(status.Provider)
 	status.NeedsUpdate = (modelProvider == ProviderCCX || isLocalBaseURL(baseURL)) && !status.MatchesCurrentPort
 	return status, nil
 }
@@ -529,13 +530,33 @@ func codexResponsesBaseURL(provider string) (string, bool) {
 func (s *Service) applyCodexThirdParty(provider, baseURL, apiKey string) error {
 	configPath := s.codexConfigPath()
 	authPath := s.codexAuthPath()
-	configContent, _, err := readTextFile(configPath)
+	configContent, configExisted, err := readTextFile(configPath)
 	if err != nil {
 		return err
 	}
-	authData, _, err := readJSONMap(authPath)
+	authData, authExisted, err := readJSONMap(authPath)
 	if err != nil {
 		return err
+	}
+	modelProvider, mpOK := extractTopLevelTomlString(configContent, "model_provider")
+	providerBlock, blockOK := extractNamedTomlBlock(configContent, "model_providers.ccx")
+	openaiKey, keyOK := authData["OPENAI_API_KEY"].(string)
+	state := CodexProxyState{
+		Version:               stateVersion,
+		ConfigPath:            configPath,
+		AuthPath:              authPath,
+		ConfigFileExisted:     configExisted,
+		AuthFileExisted:       authExisted,
+		OriginalModelProvider: optionalString(modelProvider, mpOK),
+		OriginalProviderBlock: optionalString(providerBlock, blockOK),
+		OriginalOpenAIAPIKey:  optionalString(openaiKey, keyOK),
+		InjectedProvider:      provider,
+		InjectedBaseURL:       baseURL,
+	}
+	if existing, ok := s.readCodexState(); ok {
+		state = existing
+		state.InjectedProvider = provider
+		state.InjectedBaseURL = baseURL
 	}
 	key := strings.TrimSpace(apiKey)
 	if key == "" {
@@ -544,7 +565,11 @@ func (s *Service) applyCodexThirdParty(provider, baseURL, apiKey string) error {
 	if key == "" {
 		return fmt.Errorf("%s API Key 不能为空", provider)
 	}
+	state.InjectedAPIKey = key
 	if err := s.saveProviderKey(PlatformCodex, provider, key); err != nil {
+		return err
+	}
+	if err := writeJSONAtomic(s.codexStatePath(), state); err != nil {
 		return err
 	}
 	block := fmt.Sprintf(`[model_providers.%s]
@@ -574,6 +599,9 @@ func (s *Service) restoreCodex() error {
 		}
 		content = restoreTopLevelTomlString(content, "model_provider", state.OriginalModelProvider)
 		content = restoreNamedTomlBlock(content, "model_providers.ccx", state.OriginalProviderBlock)
+		if state.InjectedProvider != "" && state.InjectedProvider != ProviderCCX && state.InjectedProvider != ProviderOpenAI {
+			content = restoreNamedTomlBlock(content, "model_providers."+state.InjectedProvider, nil)
+		}
 		if err := writeTextAtomic(state.ConfigPath, content); err != nil {
 			return err
 		}
@@ -754,6 +782,27 @@ func normalizeClaudeProvider(provider string) string {
 	default:
 		return provider
 	}
+}
+
+func normalizeCodexProvider(provider string) string {
+	switch strings.ToLower(strings.TrimSpace(provider)) {
+	case "", ProviderOpenAI:
+		return ProviderOpenAI
+	case ProviderCCX:
+		return ProviderCCX
+	case ProviderDashScope:
+		return ProviderDashScope
+	case ProviderOpenCodeZen:
+		return ProviderOpenCodeZen
+	case ProviderOpenCodeGo:
+		return ProviderOpenCodeGo
+	default:
+		return ProviderCustom
+	}
+}
+
+func isCodexThirdPartyProvider(provider string) bool {
+	return provider == ProviderDashScope || provider == ProviderOpenCodeZen || provider == ProviderOpenCodeGo
 }
 
 func resolveClaudeProvider(req ApplyAgentConfigRequest, port int, accessKey string) (string, string, string, error) {

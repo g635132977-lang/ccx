@@ -573,6 +573,101 @@ func TestSaveAndLoadProviderKeys(t *testing.T) {
 	}
 }
 
+// ── P1 回归: Codex 第三方 provider 状态识别 ──
+
+func TestGetStatusCodex_ThirdPartyProvider(t *testing.T) {
+	svc := newTestService(t)
+	configPath := filepath.Join(svc.homeDir, ".codex", "config.toml")
+	authPath := filepath.Join(svc.homeDir, ".codex", "auth.json")
+	os.MkdirAll(filepath.Dir(configPath), 0o755)
+
+	// 模拟已配置 dashscope 的 config.toml
+	tomlContent := `model_provider = "dashscope"
+
+[model_providers.dashscope]
+base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+`
+	os.WriteFile(configPath, []byte(tomlContent), 0o644)
+	writeJSON(authPath, map[string]any{"OPENAI_API_KEY": "sk-ds-key"})
+
+	status, err := svc.GetStatus(PlatformCodex, 3688)
+	if err != nil {
+		t.Fatalf("GetStatus failed: %v", err)
+	}
+	if status.Provider != ProviderDashScope {
+		t.Errorf("Provider = %q, want %q", status.Provider, ProviderDashScope)
+	}
+	if !status.Configured {
+		t.Error("Configured should be true for third-party provider")
+	}
+}
+
+func TestGetStatusCodex_OpenCodeZenProvider(t *testing.T) {
+	svc := newTestService(t)
+	configPath := filepath.Join(svc.homeDir, ".codex", "config.toml")
+	authPath := filepath.Join(svc.homeDir, ".codex", "auth.json")
+	os.MkdirAll(filepath.Dir(configPath), 0o755)
+
+	tomlContent := `model_provider = "opencode-zen"
+
+[model_providers.opencode-zen]
+base_url = "https://api.opencode.ai/v1"
+`
+	os.WriteFile(configPath, []byte(tomlContent), 0o644)
+	writeJSON(authPath, map[string]any{"OPENAI_API_KEY": "sk-zen-key"})
+
+	status, err := svc.GetStatus(PlatformCodex, 3688)
+	if err != nil {
+		t.Fatalf("GetStatus failed: %v", err)
+	}
+	if status.Provider != ProviderOpenCodeZen {
+		t.Errorf("Provider = %q, want %q", status.Provider, ProviderOpenCodeZen)
+	}
+	if !status.Configured {
+		t.Error("Configured should be true for opencode-zen provider")
+	}
+}
+
+// ── P1 回归: Codex 恢复清理第三方 provider block ──
+
+func TestApplyAndRestoreCodex_ThirdPartyCleanup(t *testing.T) {
+	svc := newTestService(t)
+	configPath := filepath.Join(svc.homeDir, ".codex", "config.toml")
+	os.MkdirAll(filepath.Dir(configPath), 0o755)
+
+	// 先 Apply 第三方 provider
+	err := svc.Apply(ApplyAgentConfigRequest{
+		Platform: PlatformCodex,
+		Provider: ProviderDashScope,
+		APIKey:   "sk-ds-key",
+		BaseURL:  "https://dashscope.aliyuncs.com/compatible-mode/v1",
+	}, 0, "")
+	if err != nil {
+		t.Fatalf("Apply failed: %v", err)
+	}
+
+	content, _ := os.ReadFile(configPath)
+	s := string(content)
+	if !strings.Contains(s, `model_provider = "dashscope"`) {
+		t.Error("config.toml should contain model_provider = dashscope after apply")
+	}
+	if !strings.Contains(s, `[model_providers.dashscope]`) {
+		t.Error("config.toml should contain dashscope provider block after apply")
+	}
+
+	// Restore
+	err = svc.Restore(PlatformCodex)
+	if err != nil {
+		t.Fatalf("Restore failed: %v", err)
+	}
+
+	content, _ = os.ReadFile(configPath)
+	s = string(content)
+	if strings.Contains(s, `[model_providers.dashscope]`) {
+		t.Error("config.toml should NOT contain dashscope provider block after restore")
+	}
+}
+
 // ── helpers ──
 
 func writeJSON(path string, data any) {
