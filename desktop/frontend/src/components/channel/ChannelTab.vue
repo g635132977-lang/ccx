@@ -47,14 +47,17 @@ const currentPlan = computed(() => {
 
 const targetOptions = computed<ChannelTarget[]>(() => currentPreset.value?.targets || [])
 
-watch(currentPreset, (preset) => {
+// 切换左侧 provider 时重置表单；仅响应 selectedProvider 变化，
+// 避免 target 变化触发 loadChannelPresets 后因 presets 更新而级联重置 selectedTarget
+watch(selectedProvider, (id) => {
+  const preset = presets.value.find((item) => item.id === id)
   if (!preset) return
   selectedTarget.value = preset.defaultTarget
   selectedPlan.value = bestPlanForTarget(preset, preset.defaultTarget)
   customBaseUrl.value = ''
   apiKey.value = ''
   channelName.value = `desktop-${preset.id}-${preset.defaultTarget}`
-}, { immediate: true })
+})
 
 // target 变化时重新加载后端过滤后的 plans，并自动选中匹配的 plan
 watch(selectedTarget, async (target) => {
