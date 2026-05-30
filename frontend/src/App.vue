@@ -442,61 +442,70 @@
             </v-btn>
           </div>
 
-          <!-- 滑块区域 -->
-          <div class="mb-2">
-            <div class="d-flex align-center mb-1">
-              <span class="text-caption text-medium-emphasis flex-grow-1">{{ t('dialog.circuitBreaker.windowSize') }}</span>
-              <span class="text-caption font-weight-bold">{{ cbForm.windowSize }}</span>
+          <!-- 滑块区域 - 三列并排 -->
+          <div class="d-flex">
+            <!-- 滑动窗口大小 -->
+            <div class="flex-grow-1 px-2">
+              <div class="d-flex align-center mb-1">
+                <span class="text-caption text-medium-emphasis flex-grow-1">{{ t('dialog.circuitBreaker.windowSize') }}</span>
+                <span class="text-caption font-weight-bold">{{ cbForm.windowSize }}</span>
+              </div>
+              <input
+                type="range"
+                :value="cbForm.windowSize"
+                :min="3"
+                :max="100"
+                step="1"
+                class="cb-slider w-100"
+                @input="onSliderChange('windowSize', $event)"
+              />
+              <div class="d-flex justify-space-between text-xs text-medium-emphasis">
+                <span>3</span><span>100</span>
+              </div>
             </div>
-            <input
-              type="range"
-              :value="cbForm.windowSize"
-              :min="3"
-              :max="100"
-              step="1"
-              class="cb-slider w-100"
-              @input="onSliderChange('windowSize', $event)"
-            />
-            <div class="d-flex justify-space-between text-xs text-medium-emphasis">
-              <span>3</span><span>100</span>
-            </div>
-          </div>
 
-          <div class="mb-2">
-            <div class="d-flex align-center mb-1">
-              <span class="text-caption text-medium-emphasis flex-grow-1">{{ t('dialog.circuitBreaker.failureThreshold') }}</span>
-              <span class="text-caption font-weight-bold">{{ cbForm.failureThreshold.toFixed(2) }}</span>
-            </div>
-            <input
-              type="range"
-              :value="cbForm.failureThreshold"
-              :min="0.01"
-              :max="1"
-              step="0.01"
-              class="cb-slider w-100"
-              @input="onSliderChange('failureThreshold', $event)"
-            />
-            <div class="d-flex justify-space-between text-xs text-medium-emphasis">
-              <span>0.01</span><span>1.00</span>
-            </div>
-          </div>
+            <v-divider vertical class="mx-1" />
 
-          <div class="mb-1">
-            <div class="d-flex align-center mb-1">
-              <span class="text-caption text-medium-emphasis flex-grow-1">{{ t('dialog.circuitBreaker.consecutiveFailuresThreshold') }}</span>
-              <span class="text-caption font-weight-bold">{{ cbForm.consecutiveFailuresThreshold }}</span>
+            <!-- 失败率阈值 -->
+            <div class="flex-grow-1 px-2">
+              <div class="d-flex align-center mb-1">
+                <span class="text-caption text-medium-emphasis flex-grow-1">{{ t('dialog.circuitBreaker.failureThreshold') }}</span>
+                <span class="text-caption font-weight-bold">{{ cbForm.failureThreshold.toFixed(2) }}</span>
+              </div>
+              <input
+                type="range"
+                :value="cbForm.failureThreshold"
+                :min="0.01"
+                :max="1"
+                step="0.01"
+                class="cb-slider w-100"
+                @input="onSliderChange('failureThreshold', $event)"
+              />
+              <div class="d-flex justify-space-between text-xs text-medium-emphasis">
+                <span>0.01</span><span>1.00</span>
+              </div>
             </div>
-            <input
-              type="range"
-              :value="cbForm.consecutiveFailuresThreshold"
-              :min="1"
-              :max="100"
-              step="1"
-              class="cb-slider w-100"
-              @input="onSliderChange('consecutiveFailuresThreshold', $event)"
-            />
-            <div class="d-flex justify-space-between text-xs text-medium-emphasis">
-              <span>1</span><span>100</span>
+
+            <v-divider vertical class="mx-1" />
+
+            <!-- 连续失败阈值 -->
+            <div class="flex-grow-1 px-2">
+              <div class="d-flex align-center mb-1">
+                <span class="text-caption text-medium-emphasis flex-grow-1">{{ t('dialog.circuitBreaker.consecutiveFailuresThreshold') }}</span>
+                <span class="text-caption font-weight-bold">{{ cbForm.consecutiveFailuresThreshold }}</span>
+              </div>
+              <input
+                type="range"
+                :value="cbForm.consecutiveFailuresThreshold"
+                :min="1"
+                :max="100"
+                step="1"
+                class="cb-slider w-100"
+                @input="onSliderChange('consecutiveFailuresThreshold', $event)"
+              />
+              <div class="d-flex justify-space-between text-xs text-medium-emphasis">
+                <span>1</span><span>100</span>
+              </div>
             </div>
           </div>
         </v-card-text>

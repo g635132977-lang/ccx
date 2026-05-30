@@ -196,9 +196,10 @@ onMounted(() => {
         </Button>
       </div>
 
-      <!-- Sliders -->
-      <div class="space-y-3">
-        <div>
+      <!-- Sliders - 三列并排 -->
+      <div class="flex">
+        <!-- 滑动窗口大小 -->
+        <div class="flex-1 px-2">
           <div class="flex items-center justify-between mb-1">
             <span class="text-xs text-muted-foreground">{{ t('env.runtimeCbWindowSize') }}</span>
             <span class="text-xs font-medium">{{ form.windowSize }}</span>
@@ -216,7 +217,10 @@ onMounted(() => {
           <div class="flex justify-between text-xs text-muted-foreground"><span>3</span><span>100</span></div>
         </div>
 
-        <div>
+        <div class="w-px bg-border mx-1 self-stretch" />
+
+        <!-- 失败率阈值 -->
+        <div class="flex-1 px-2">
           <div class="flex items-center justify-between mb-1">
             <span class="text-xs text-muted-foreground">{{ t('env.runtimeCbFailureThreshold') }}</span>
             <span class="text-xs font-medium">{{ form.failureThreshold.toFixed(2) }}</span>
@@ -234,7 +238,10 @@ onMounted(() => {
           <div class="flex justify-between text-xs text-muted-foreground"><span>0.01</span><span>1.00</span></div>
         </div>
 
-        <div>
+        <div class="w-px bg-border mx-1 self-stretch" />
+
+        <!-- 连续失败阈值 -->
+        <div class="flex-1 px-2">
           <div class="flex items-center justify-between mb-1">
             <span class="text-xs text-muted-foreground">{{ t('env.runtimeCbConsecutiveFailures') }}</span>
             <span class="text-xs font-medium">{{ form.consecutiveFailuresThreshold }}</span>
