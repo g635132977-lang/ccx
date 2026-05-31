@@ -732,9 +732,45 @@ const copyChannelInfo = async (channel: Channel) => {
 // Active channels (draggable and sortable) - includes active and suspended statuses
 const activeChannels = ref<Channel[]>([])
 
+// 首次渲染时记录内置顺序，用于在保持内置顺序的前提下优先展示已配置 key 的渠道
+const initialBuiltInOrder = computed(() => props.channels.map(ch => ch.index))
+const lastKnownActiveOrder = ref<number[]>([])
+const lastKnownInactiveOrder = ref<number[]>([])
+
+// 有 key 的渠道优先展示，同时保持既有的优先级/内置顺序稳定
+const buildKeyFirstOrder = (
+  source: Channel[],
+  fallbackOrder: number[]
+): Channel[] => {
+  const fallbackRank = new Map<number, number>()
+  fallbackOrder.forEach((idx, rank) => fallbackRank.set(idx, rank))
+
+  const originalRank = new Map<number, number>()
+  initialBuiltInOrder.value.forEach((idx, rank) => originalRank.set(idx, rank))
+
+  const hasKey = (ch: Channel) =>
+    Array.isArray(ch.apiKeys) && ch.apiKeys.length > 0
+
+  return [...source].sort((a, b) => {
+    const keyDiff = Number(hasKey(a)) - Number(hasKey(b))
+    if (keyDiff !== 0) return keyDiff
+
+    const aKnown = fallbackRank.has(a.index)
+    const bKnown = fallbackRank.has(b.index)
+    if (aKnown && bKnown) return fallbackRank.get(a.index)! - fallbackRank.get(b.index)!
+
+    const aPriority = a.priority ?? originalRank.get(a.index) ?? a.index
+    const bPriority = b.priority ?? originalRank.get(b.index) ?? b.index
+    return aPriority - bPriority
+  })
+}
+
 // Computed: inactive channels - disabled status only
 const inactiveChannels = computed(() => {
-  return props.channels.filter(ch => ch.status === 'disabled')
+  const inactive = props.channels.filter(ch => ch.status === 'disabled')
+  const sortedInactive = buildKeyFirstOrder(inactive, lastKnownInactiveOrder.value)
+  lastKnownInactiveOrder.value = sortedInactive.map(ch => ch.index)
+  return sortedInactive
 })
 
 // Computed: inactive channels after search filtering
@@ -754,22 +790,22 @@ const isMultiChannelMode = computed(() => {
   return activeCount > 1
 })
 
-// Initialize the active channel list - both active and suspended channels participate in the failover sequence
-// Optimization: update only when the structure changes to avoid frequent rebuilds that destroy child components
+// 初始化渠道编排列表 - 活跃与挂起渠道共同参与 failover 序列
+// 优化策略：仅在结构变化时重建数组，避免频繁重构导致子组件被销毁重建
 const initActiveChannels = () => {
-  const newActive = props.channels
-    .filter(ch => ch.status !== 'disabled')
-    .sort((a, b) => (a.priority ?? a.index) - (b.priority ?? b.index))
+  const filteredActive = props.channels.filter(ch => ch.status !== 'disabled')
+  const newActive = buildKeyFirstOrder(filteredActive, lastKnownActiveOrder.value)
+  lastKnownActiveOrder.value = newActive.map(ch => ch.index)
 
-  // Check whether an update is needed by comparing index lists
+  // 通过索引列表比较，判断是否需要整体重建
   const currentIndexes = activeChannels.value.map(ch => ch.index).join(',')
   const newIndexes = newActive.map(ch => ch.index).join(',')
 
   if (currentIndexes !== newIndexes) {
-    // Structure changed (added/removed/reordered), array must be rebuilt
+    // 结构发生变更（新增/删除/重新排序），需要重建数组
     activeChannels.value = [...newActive]
   } else {
-    // Structure unchanged, update properties on existing objects only (preserve references)
+    // 结构未变，仅更新已有对象的属性（保持引用稳定）
     activeChannels.value.forEach((ch, i) => {
       Object.assign(ch, newActive[i])
     })
