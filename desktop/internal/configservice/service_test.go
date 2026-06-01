@@ -1178,6 +1178,67 @@ openai_base_url = "http://127.0.0.1:3688/v1"
 	assertDiffDoesNotLeak(t, result, "local-proxy-secret-value", "old-auth-secret-value")
 }
 
+func TestPreviewApplyCodex_ThirdPartyPluginMasksRemovedCCXToken(t *testing.T) {
+	svc := newTestService(t)
+	configPath := filepath.Join(svc.homeDir, ".codex", "config.toml")
+	authPath := filepath.Join(svc.homeDir, ".codex", "auth.json")
+	os.MkdirAll(filepath.Dir(configPath), 0o755)
+	os.WriteFile(configPath, []byte(`model_provider = "ccx"
+
+[model_providers.ccx]
+name = "CCX Proxy"
+base_url = "http://127.0.0.1:3688/v1"
+wire_api = "responses"
+requires_openai_auth = true
+experimental_bearer_token = "old-plugin-secret-value"
+`), 0o644)
+	writeJSON(authPath, map[string]any{"OPENAI_API_KEY": "old-auth-secret-value", "auth_mode": "chatgpt"})
+
+	result, err := svc.PreviewApply(ApplyAgentConfigRequest{Platform: PlatformCodex, Provider: ProviderDashScope, Mode: "plugin"}, 3688, "new-provider-secret-value")
+	if err != nil {
+		t.Fatalf("PreviewApply failed: %v", err)
+	}
+
+	assertDiffDoesNotLeak(t, result, "new-provider-secret-value", "old-plugin-secret-value", "old-auth-secret-value")
+}
+
+func TestPreviewApplyCodex_ThirdPartyQuickMasksRemovedCCXToken(t *testing.T) {
+	svc := newTestService(t)
+	configPath := filepath.Join(svc.homeDir, ".codex", "config.toml")
+	authPath := filepath.Join(svc.homeDir, ".codex", "auth.json")
+	os.MkdirAll(filepath.Dir(configPath), 0o755)
+	os.WriteFile(configPath, []byte(`model_provider = "ccx"
+
+[model_providers.ccx]
+name = "CCX Proxy"
+base_url = "http://127.0.0.1:3688/v1"
+wire_api = "responses"
+requires_openai_auth = true
+experimental_bearer_token = "key"
+`), 0o644)
+	writeJSON(authPath, map[string]any{"OPENAI_API_KEY": "old-auth-secret-value", "auth_mode": "chatgpt"})
+
+	result, err := svc.PreviewApply(ApplyAgentConfigRequest{Platform: PlatformCodex, Provider: ProviderDashScope, Mode: "quick"}, 3688, "new-provider-secret-value")
+	if err != nil {
+		t.Fatalf("PreviewApply failed: %v", err)
+	}
+
+	assertDiffDoesNotLeak(t, result, `"key"`, "new-provider-secret-value", "old-auth-secret-value")
+	assertDiffContains(t, result, `experimental_bearer_token = "k***y"`)
+}
+
+func assertDiffContains(t *testing.T, result ConfigDiffResult, want string) {
+	t.Helper()
+	for _, file := range result.Files {
+		for _, line := range file.Lines {
+			if strings.Contains(line.Content, want) {
+				return
+			}
+		}
+	}
+	t.Fatalf("diff does not contain %q", want)
+}
+
 func assertDiffDoesNotLeak(t *testing.T, result ConfigDiffResult, rawValues ...string) {
 	t.Helper()
 	for _, file := range result.Files {

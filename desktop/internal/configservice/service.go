@@ -1596,19 +1596,12 @@ func (s *Service) previewApplyCodexQuick(port int, accessKey string) (ConfigDiff
 	// 清理插件模式残留
 	updatedConfig = restoreNamedTomlBlock(updatedConfig, "model_providers.ccx", nil)
 
-	oldBearerToken := ""
-	if existingBlock, ok := extractNamedTomlBlock(configContent, "model_providers.ccx"); ok {
-		oldBearerToken, _ = extractTomlStringField(existingBlock, "experimental_bearer_token")
-	}
-	oldKeyValues := map[string]string{"experimental_bearer_token": oldBearerToken}
-	newKeyValues := map[string]string{}
-
 	newAuthData := copyJSONMap(authData)
 	newAuthData["OPENAI_API_KEY"] = accessKey
 	newAuthData["auth_mode"] = "apikey"
 
 	return ConfigDiffResult{Files: []FileDiff{
-		computeTextDiffWithSeparateMasks(configPath, configContent, updatedConfig, oldKeyValues, newKeyValues),
+		computeTextDiffWithSensitiveFields(configPath, configContent, updatedConfig, "experimental_bearer_token"),
 		computeJSONDiffWithMask(authPath, authData, newAuthData, "OPENAI_API_KEY"),
 	}}, nil
 }
@@ -1638,19 +1631,12 @@ experimental_bearer_token = %q
 	updatedConfig = restoreNamedTomlBlock(updatedConfig, "model_providers.ccx", nil)
 	updatedConfig = upsertNamedTomlBlock(updatedConfig, "model_providers.ccx", block)
 
-	oldBearerToken := ""
-	if existingBlock, ok := extractNamedTomlBlock(configContent, "model_providers.ccx"); ok {
-		oldBearerToken, _ = extractTomlStringField(existingBlock, "experimental_bearer_token")
-	}
-	oldKeyValues := map[string]string{"experimental_bearer_token": oldBearerToken}
-	newKeyValues := map[string]string{"experimental_bearer_token": accessKey}
-
 	newAuthData := copyJSONMap(authData)
 	newAuthData["OPENAI_API_KEY"] = accessKey
 	newAuthData["auth_mode"] = "chatgpt"
 
 	return ConfigDiffResult{Files: []FileDiff{
-		computeTextDiffWithSeparateMasks(configPath, configContent, updatedConfig, oldKeyValues, newKeyValues),
+		computeTextDiffWithSensitiveFields(configPath, configContent, updatedConfig, "experimental_bearer_token"),
 		computeJSONDiffWithMask(authPath, authData, newAuthData, "OPENAI_API_KEY"),
 	}}, nil
 }
@@ -1685,7 +1671,7 @@ func (s *Service) previewApplyCodexOpenAI(apiKey string) (ConfigDiffResult, erro
 	updatedConfig = restoreNamedTomlBlock(updatedConfig, "model_providers.openai", nil)
 
 	return ConfigDiffResult{Files: []FileDiff{
-		computeTextDiff(configPath, configContent, updatedConfig),
+		computeTextDiffWithSensitiveFields(configPath, configContent, updatedConfig, "experimental_bearer_token"),
 		computeJSONDiffWithMask(authPath, authData, newAuthData, "OPENAI_API_KEY"),
 	}}, nil
 }
@@ -1724,19 +1710,12 @@ experimental_bearer_token = %q
 	updatedConfig = restoreNamedTomlBlock(updatedConfig, "model_providers.openai", nil)
 	updatedConfig = upsertNamedTomlBlock(updatedConfig, "model_providers."+provider, block)
 
-	oldBearerToken := ""
-	if existingBlock, ok := extractNamedTomlBlock(configContent, "model_providers."+provider); ok {
-		oldBearerToken, _ = extractTomlStringField(existingBlock, "experimental_bearer_token")
-	}
-	oldKeyValues := map[string]string{"experimental_bearer_token": oldBearerToken}
-	newKeyValues := map[string]string{"experimental_bearer_token": key}
-
 	newAuthData := copyJSONMap(authData)
 	newAuthData["OPENAI_API_KEY"] = key
 	newAuthData["auth_mode"] = "chatgpt"
 
 	return ConfigDiffResult{Files: []FileDiff{
-		computeTextDiffWithSeparateMasks(configPath, configContent, updatedConfig, oldKeyValues, newKeyValues),
+		computeTextDiffWithSensitiveFields(configPath, configContent, updatedConfig, "experimental_bearer_token"),
 		computeJSONDiffWithMask(authPath, authData, newAuthData, "OPENAI_API_KEY"),
 	}}, nil
 }
@@ -1770,19 +1749,12 @@ func (s *Service) previewApplyCodexThirdPartyQuick(provider, baseURL, apiKey str
 		updatedConfig = restoreNamedTomlBlock(updatedConfig, "model_providers."+provider, nil)
 	}
 
-	oldBearerToken := ""
-	if existingBlock, ok := extractNamedTomlBlock(configContent, "model_providers."+provider); ok {
-		oldBearerToken, _ = extractTomlStringField(existingBlock, "experimental_bearer_token")
-	}
-	oldKeyValues := map[string]string{"experimental_bearer_token": oldBearerToken}
-	newKeyValues := map[string]string{}
-
 	newAuthData := copyJSONMap(authData)
 	newAuthData["OPENAI_API_KEY"] = key
 	newAuthData["auth_mode"] = "apikey"
 
 	return ConfigDiffResult{Files: []FileDiff{
-		computeTextDiffWithSeparateMasks(configPath, configContent, updatedConfig, oldKeyValues, newKeyValues),
+		computeTextDiffWithSensitiveFields(configPath, configContent, updatedConfig, "experimental_bearer_token"),
 		computeJSONDiffWithMask(authPath, authData, newAuthData, "OPENAI_API_KEY"),
 	}}, nil
 }

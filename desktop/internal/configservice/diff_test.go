@@ -123,11 +123,13 @@ func TestMaskSensitiveValue(t *testing.T) {
 		want  string
 	}{
 		{"空字符串", "", ""},
-		{"短值", "abc", "***"},
-		{"正好11字符", "12345678901", "***"},
-		{"12字符", "123456789012", "123***9012"},
-		{"长值", "sk-abcdef12345678", "sk-***5678"},
-		{"带空格", "  sk-test12345678  ", "sk-***5678"},
+		{"单字符", "a", "***"},
+		{"三字符短值", "key", "k***y"},
+		{"五字符短值", "abc12", "a***2"},
+		{"六字符短值", "abc123", "abc***23"},
+		{"十字符", "1234567890", "123***90"},
+		{"长值", "sk-abcdef12345678", "sk-abcde***45678"},
+		{"带空格", "  sk-test12345678  ", "sk-test1***45678"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -193,11 +195,29 @@ OPENAI_API_KEY = "sk-test1234567890"`
 	if strings.Contains(result, "sk-test1234567890") {
 		t.Error("original key value should be masked in output")
 	}
-	if !strings.Contains(result, "sk-***7890") {
+	if !strings.Contains(result, "sk-test1***67890") {
 		t.Errorf("expected masked value in output, got:\n%s", result)
 	}
 	if !strings.Contains(result, `model_provider = "ccx"`) {
 		t.Error("non-sensitive content should be preserved")
+	}
+}
+
+func TestMaskTextSensitiveValues_ShortValueNoSubstringLeak(t *testing.T) {
+	content := `auth_mode = "apikey"
+experimental_bearer_token = "key"
+`
+	result := maskTextSensitiveValues(content, map[string]string{
+		"experimental_bearer_token": "key",
+	})
+	if !strings.Contains(result, `experimental_bearer_token = "k***y"`) {
+		t.Errorf("expected short token to keep head and tail, got:\n%s", result)
+	}
+	if !strings.Contains(result, `auth_mode = "apikey"`) {
+		t.Errorf("non-sensitive substring should not be masked, got:\n%s", result)
+	}
+	if strings.Contains(result, `"key"`) {
+		t.Errorf("raw short sensitive value should not be exposed, got:\n%s", result)
 	}
 }
 
@@ -433,18 +453,14 @@ func TestComputeJSONDiffWithMask_SensitiveValueIdentical(t *testing.T) {
 	}
 }
 
-func TestComputeTextDiffWithMask_SensitiveValueChanged(t *testing.T) {
+func TestComputeTextDiffWithMask_SensitiveFieldChanged(t *testing.T) {
 	old := `OPENAI_API_KEY = "old-key-12345678"
 model_provider = "ccx"`
 	new := `OPENAI_API_KEY = "new-key-87654321"
 model_provider = "ccx"`
-	keyValues := map[string]string{
-		"OPENAI_API_KEY": "old-key-12345678",
-	}
-	_ = keyValues // used by masking
 
 	result := computeTextDiffWithMask("config.toml", old, new, map[string]string{
-		"OPENAI_API_KEY": "old-key-12345678",
+		"OPENAI_API_KEY": "",
 	})
 
 	hasRemoved := false
@@ -456,9 +472,12 @@ model_provider = "ccx"`
 		if l.Type == "added" {
 			hasAdded = true
 		}
+		if strings.Contains(l.Content, "old-key-12345678") || strings.Contains(l.Content, "new-key-87654321") {
+			t.Errorf("raw sensitive field value leaked in diff line: %q", l.Content)
+		}
 	}
 	if !hasRemoved || !hasAdded {
-		t.Errorf("sensitive text value changed but diff missed it: removed=%v added=%v", hasRemoved, hasAdded)
+		t.Errorf("sensitive text field changed but diff missed it: removed=%v added=%v", hasRemoved, hasAdded)
 	}
 }
 
@@ -482,15 +501,13 @@ func TestExtractNestedStringValues(t *testing.T) {
 	}
 }
 
-func TestComputeTextDiffWithSeparateMasks_KeyChanged(t *testing.T) {
+func TestComputeTextDiffWithSensitiveFields_KeyChanged(t *testing.T) {
 	before := `OPENAI_API_KEY = "old-key-aaaabbbb"
 model_provider = "ccx"`
 	after := `OPENAI_API_KEY = "new-key-ccccdddd"
 model_provider = "ccx"`
-	oldKeys := map[string]string{"OPENAI_API_KEY": "old-key-aaaabbbb"}
-	newKeys := map[string]string{"OPENAI_API_KEY": "new-key-ccccdddd"}
 
-	result := computeTextDiffWithSeparateMasks("config.toml", before, after, oldKeys, newKeys)
+	result := computeTextDiffWithSensitiveFields("config.toml", before, after, "OPENAI_API_KEY")
 
 	hasRemoved := false
 	hasAdded := false

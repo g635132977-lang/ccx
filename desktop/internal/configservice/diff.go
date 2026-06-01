@@ -3,6 +3,8 @@ package configservice
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -50,19 +52,44 @@ func formatJSON(data map[string]any) string {
 }
 
 // maskSensitiveValue 对单个值进行脱敏。
-// 短于 12 字符显示为 "***"；否则保留前 3 后 4，中间 "***"。
+// 保留头尾字符，中间用 *** 遮蔽；短值也保留首尾，避免不同短密钥都显示为 ***。
 func maskSensitiveValue(value string) string {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return ""
 	}
 	runes := []rune(value)
-	if len(runes) < 12 {
+	length := len(runes)
+	if length == 1 {
 		return "***"
 	}
-	prefix := string(runes[:3])
-	suffix := string(runes[len(runes)-4:])
-	return prefix + "***" + suffix
+	if length <= 5 {
+		return string(runes[:1]) + "***" + string(runes[length-1:])
+	}
+	if length <= 10 {
+		return string(runes[:3]) + "***" + string(runes[length-2:])
+	}
+	return string(runes[:8]) + "***" + string(runes[length-5:])
+}
+
+// maskTextSensitiveFields 只对指定 TOML 字段的字符串值进行脱敏。
+func maskTextSensitiveFields(content string, fields ...string) string {
+	result := content
+	for _, field := range fields {
+		field = strings.TrimSpace(field)
+		if field == "" {
+			continue
+		}
+		re := regexp.MustCompile(`(?m)^(\s*` + regexp.QuoteMeta(field) + `\s*=\s*)("([^"]*)")(\s*(?:#.*)?$)`)
+		result = re.ReplaceAllStringFunc(result, func(line string) string {
+			match := re.FindStringSubmatch(line)
+			if len(match) < 5 {
+				return line
+			}
+			return match[1] + strconv.Quote(maskSensitiveValue(match[3])) + match[4]
+		})
+	}
+	return result
 }
 
 // sensitiveFieldKeys 需要脱敏的配置字段名。
@@ -106,22 +133,17 @@ func maskJSONSensitiveKeys(data map[string]any) map[string]any {
 	return result
 }
 
-// maskTextSensitiveValues 对文本内容中出现的敏感值进行行内脱敏。
-// 用于 TOML / JSON 文本 diff 的 before/after 内容。
+// maskTextSensitiveValues 对指定字段的字符串值进行行内脱敏。
+// keyValues 只使用 key 作为字段名，value 不参与匹配，避免敏感短值误伤普通文本。
 func maskTextSensitiveValues(content string, keyValues map[string]string) string {
 	if len(keyValues) == 0 {
 		return content
 	}
-	result := content
-	for _, value := range keyValues {
-		value = strings.TrimSpace(value)
-		if value == "" {
-			continue
-		}
-		masked := maskSensitiveValue(value)
-		result = strings.ReplaceAll(result, value, masked)
+	fields := make([]string, 0, len(keyValues))
+	for field := range keyValues {
+		fields = append(fields, field)
 	}
-	return result
+	return maskTextSensitiveFields(content, fields...)
 }
 
 // computeJSONDiffWithMask 用原始数据判定变更类型（removed/added），
@@ -169,34 +191,27 @@ func maskDataSensitiveKeys(data map[string]any, keys []string) map[string]any {
 	return result
 }
 
-// computeTextDiffWithMask 在原始文本上计算 diff，再对展示内容进行脱敏。
-// 用于两侧敏感值相同的场景（如 restore）。
-func computeTextDiffWithMask(path, before, after string, keyValues map[string]string) FileDiff {
-	return computeTextDiffWithSeparateMasks(path, before, after, keyValues, keyValues)
+// computeTextDiffWithMask 在原始文本上计算 diff，再按字段对展示内容进行脱敏。
+func computeTextDiffWithMask(path, before, after string, fields map[string]string) FileDiff {
+	return computeTextDiffWithSensitiveFields(path, before, after, mapKeys(fields)...)
 }
 
-// computeTextDiffWithSeparateMasks 在原始文本上计算 diff，再对展示内容进行脱敏。
-// oldKeys/newKeys 分别用于脱敏 before/after 内容，避免密钥变更时单侧泄露。
-func computeTextDiffWithSeparateMasks(path, before, after string, oldKeys, newKeys map[string]string) FileDiff {
-	// 用值集合去重，避免同键名在 map 合并时旧值被新值覆盖
-	seen := make(map[string]bool, len(oldKeys)+len(newKeys))
-	for _, v := range oldKeys {
-		if v = strings.TrimSpace(v); v != "" {
-			seen[v] = true
-		}
-	}
-	for _, v := range newKeys {
-		if v = strings.TrimSpace(v); v != "" {
-			seen[v] = true
-		}
-	}
-	oldMasked, newMasked := before, after
-	for v := range seen {
-		masked := maskSensitiveValue(v)
-		oldMasked = strings.ReplaceAll(oldMasked, v, masked)
-		newMasked = strings.ReplaceAll(newMasked, v, masked)
-	}
+// computeTextDiffWithSensitiveFields 在原始文本上计算 diff，再只对指定字段值进行脱敏。
+func computeTextDiffWithSensitiveFields(path, before, after string, fields ...string) FileDiff {
+	oldMasked := maskTextSensitiveFields(before, fields...)
+	newMasked := maskTextSensitiveFields(after, fields...)
 	return computeTextDiffFromMasked(path, before, after, oldMasked, newMasked)
+}
+
+func mapKeys(values map[string]string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	return keys
 }
 
 // computeTextDiffFromMasked 在原始内容上做 LCS diff 确定变更类型，
